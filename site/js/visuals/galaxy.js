@@ -93,13 +93,10 @@ export async function initGalaxy(container, items, opts = {}) {
     cs[i * 4 + 3] = 2.6 + rng();
   }
 
-  // --- atlas slots: mobile textures ~320 covers spread over time (always first + latest) ---
-  let texturedSet = null;
-  if (opts.mobile && N > 320) {
-    texturedSet = new Set([0, N - 1]);
-    const step = (N - 1) / 319;
-    for (let k = 0; k < 320; k++) texturedSet.add(Math.round(k * step));
-  }
+  // --- atlas slots: every cover with art gets a slot, mobile included. Desktop
+  // already textures all ~950 at 128px (~62 MB / 4 atlases) without trouble, and
+  // modern phones handle the same budget fine — so no mobile subset. ---
+  const texturedSet = null;
   const slotted = new Array(N).fill(null);
   let sc = 0;
   for (let i = 0; i < N; i++) {
@@ -215,8 +212,9 @@ export async function initGalaxy(container, items, opts = {}) {
   stars.frustumCulled = false;
   group.add(stars);
 
-  // --- progressive texture loading (small concurrency queue; mobile pulls the
-  // 64px art variant — ~5x fewer bytes for 128px atlas cells) ---
+  // --- progressive texture loading (small concurrency queue). Both desktop and
+  // mobile pull the 300px art so the 128px atlas cell is a crisp downscale, not
+  // an upscale of the 64px thumb (which read blurry even at rest on phones). ---
   (async () => {
     const jobs = [];
     for (let i = 0; i < N; i++) if (slotted[i]) jobs.push(i);
@@ -244,7 +242,7 @@ export async function initGalaxy(container, items, opts = {}) {
       while (!disposed && cursor < jobs.length) {
         const i = jobs[cursor++];
         const it = items[i];
-        const img = await loadImage((opts.mobile && it.artSm) || it.art);
+        const img = await loadImage(it.art || it.artSm);
         if (disposed) return;
         if (!img) continue; // failed: colored quad stays
         const { a, s } = slotted[i];

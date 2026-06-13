@@ -146,7 +146,8 @@
   }
   .simwrap { overflow-x:auto; }
   .sim td { text-align:center; min-width:46px; border:1px solid rgba(10,22,29,.7); }
-  .sim .rowname { text-align:right; color:var(--ink-dim); }
+  .sim th { padding:0 9px; letter-spacing:.06em; white-space:nowrap; }
+  .sim .rowname { text-align:right; color:var(--ink-dim); white-space:nowrap; }
 
   footer {
     text-align:center; color:var(--ink-dim); font-size:.68rem; letter-spacing:.24em;
@@ -201,7 +202,7 @@
 </div>
 </div>
 
-<footer>built with the bot · data from the chat itself</footer>
+<footer>built with ❤️</footer>
 
 <!-- Currents flow-field background — same module the story page uses.
      Wrapped in try/catch: if it fails, the CSS gradient fallback stays. -->
@@ -399,7 +400,7 @@ function init(D) {
   // similarity heatmap — teal scale
   const names = D.similarity.people.slice(0, 8);
   let html = '<table class="sim"><tr><td></td>' +
-    names.map(n => `<th>${disp(n).slice(0, 7)}</th>`).join('') + '</tr>';
+    names.map(n => `<th>${disp(n)}</th>`).join('') + '</tr>';
   names.forEach((a, i) => {
     html += `<tr><td class="rowname">${disp(a)}</td>`;
     names.forEach((b, j) => {
