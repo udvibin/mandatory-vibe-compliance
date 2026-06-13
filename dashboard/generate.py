@@ -355,6 +355,16 @@ def main():
     save_cache(cache)
 
     data = build_data(msgs, shares, cache)
+
+    # Bake the galaxy cover-atlas (delta: only new/tail sheets). Best-effort —
+    # a bake failure must not sink the whole run; the site falls back to
+    # per-cover loading for any track left without a `cell`.
+    try:
+        from atlas import bake_atlas
+        data["atlas"] = bake_atlas(data["tracks"])
+    except Exception as e:
+        print(f"WARN atlas bake skipped: {e}")
+
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)

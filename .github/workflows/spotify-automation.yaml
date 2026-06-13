@@ -70,11 +70,14 @@ jobs:
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-          for f in spotify_bot_log.txt apple_link_failures.json dashboard/resolution_cache.json site/data.json; do
+          for f in spotify_bot_log.txt apple_link_failures.json dashboard/resolution_cache.json dashboard/atlas_manifest.json site/data.json; do
             if [ -f "$f" ] && [ -s "$f" ]; then
               git add "$f"
             fi
           done
+
+          # baked galaxy atlas sheets — -A so deleted (re-hashed) sheets stage too
+          git add -A site/atlas 2>/dev/null || true
 
           if ! git diff --staged --quiet; then
             git commit -m "Update Spotify bot log $(date -u +'%Y-%m-%d %H:%M:%S UTC')"

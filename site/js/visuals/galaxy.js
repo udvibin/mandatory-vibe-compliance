@@ -93,28 +93,57 @@ export async function initGalaxy(container, items, opts = {}) {
     cs[i * 4 + 3] = 2.6 + rng();
   }
 
-  // --- atlas slots: every cover with art gets a slot, mobile included. Desktop
-  // already textures all ~950 at 128px (~62 MB / 4 atlases) without trouble, and
-  // modern phones handle the same budget fine — so no mobile subset. ---
-  const texturedSet = null;
+  // --- atlas slots ---
+  // Preferred path: sheets pre-baked in CI (dashboard/atlas.py). data.json gives
+  // each track a permanent `cell: [sheet, cellInSheet]`, so the client just loads
+  // ~4 WebP sheets instead of fetching ~950 covers + compositing them itself.
+  // Fallback path (no `atlas` block, or a track without a `cell`): the original
+  // client-side per-cover loader below still fills a CanvasTexture atlas.
+  const baked = opts.atlas && Array.isArray(opts.atlas.sheets) && opts.atlas.sheets.length
+    ? opts.atlas : null;
+  const anis = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+
   const slotted = new Array(N).fill(null);
-  let sc = 0;
-  for (let i = 0; i < N; i++) {
-    if (items[i].art && (!texturedSet || texturedSet.has(i))) {
-      slotted[i] = { a: (sc / PER) | 0, s: sc % PER };
-      sc++;
+  let nAtlas;
+  if (baked) {
+    nAtlas = baked.sheets.length;
+    for (let i = 0; i < N; i++) {
+      const c = items[i].cell;
+      if (c) slotted[i] = { a: c[0], s: c[1] };
     }
+  } else {
+    let sc = 0;
+    for (let i = 0; i < N; i++) {
+      if (items[i].art) { slotted[i] = { a: (sc / PER) | 0, s: sc % PER }; sc++; }
+    }
+    nAtlas = Math.max(1, Math.ceil(sc / PER));
   }
-  const nAtlas = Math.max(1, Math.ceil(sc / PER));
+
+  // crossfade a sheet's covers in once its texture has decoded (avoids a pop)
+  function onSheetReady(a) {
+    if (disposed) return;
+    for (let i = 0; i < N; i++) if (slotted[i] && slotted[i].a === a) st[i].tTex = 1;
+    settled = false;
+  }
 
   const atlases = [];
   for (let a = 0; a < nAtlas; a++) {
-    const cv = document.createElement("canvas");
-    cv.width = cv.height = ATLAS;
-    const tx = new THREE.CanvasTexture(cv);
-    tx.colorSpace = THREE.SRGBColorSpace;
-    tx.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-    atlases.push({ ctx: cv.getContext("2d"), texture: tx });
+    if (baked) {
+      // same-origin WebP — no crossOrigin / canvas tainting concerns
+      const tx = new THREE.TextureLoader().load(
+        `atlas/${baked.sheets[a]}`, () => onSheetReady(a), undefined,
+        () => console.warn(`[galaxy] atlas sheet ${a} failed to load`));
+      tx.colorSpace = THREE.SRGBColorSpace;
+      tx.anisotropy = anis;
+      atlases.push({ texture: tx });
+    } else {
+      const cv = document.createElement("canvas");
+      cv.width = cv.height = ATLAS;
+      const tx = new THREE.CanvasTexture(cv);
+      tx.colorSpace = THREE.SRGBColorSpace;
+      tx.anisotropy = anis;
+      atlases.push({ ctx: cv.getContext("2d"), texture: tx });
+    }
   }
 
   // --- per-item animated state ---
@@ -212,10 +241,10 @@ export async function initGalaxy(container, items, opts = {}) {
   stars.frustumCulled = false;
   group.add(stars);
 
-  // --- progressive texture loading (small concurrency queue). Both desktop and
-  // mobile pull the 300px art so the 128px atlas cell is a crisp downscale, not
-  // an upscale of the 64px thumb (which read blurry even at rest on phones). ---
-  (async () => {
+  // --- progressive texture loading (fallback only — skipped when sheets are
+  // pre-baked). Small concurrency queue pulling the 300px art so the 128px atlas
+  // cell is a crisp downscale, not an upscale of the 64px thumb. ---
+  if (!baked) (async () => {
     const jobs = [];
     for (let i = 0; i < N; i++) if (slotted[i]) jobs.push(i);
     let cursor = 0;

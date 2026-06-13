@@ -37,13 +37,12 @@ already uses. Everything free: Spotify Web API, Drive API, Actions, Pages.
 4. ~~Nerd-view CTA~~ DONE 12 Jun — bordered `.nerd-cta` block in the outro
    ("want every chart, every table? open the nerd view →"); footer is now
    just "built with ❤️".
-5. ~~Galaxy mobile loading~~ DONE 12 Jun, improved 13 Jun — pipeline stores
-   `art_sm` (Spotify's 64px art); mobile galaxy + fallback grid load it
-   instead of the 300px art (~5x fewer bytes). 13 Jun: each flush
-   re-uploads a full 2048² atlas (a visible hitch on mobile), so mobile now
-   batches far larger and time-gates uploads (≥80 covers, min 450 ms / max
-   1100 ms) and runs 4 loader workers instead of 6 — fewer, fatter uploads,
-   smoother scroll during load. Tunables in `visuals/galaxy.js` (`FLUSH_*`).
+5. ~~Galaxy mobile loading~~ DONE 12 Jun, improved 13 Jun, **SUPERSEDED 14 Jun
+   by the pre-baked atlas** (see "Galaxy cover-atlas" below). History: pipeline
+   stored `art_sm` (64px) for mobile; later flushes were time-gated to smooth
+   uploads (`FLUSH_*` in `visuals/galaxy.js`). That whole client-side per-cover
+   loader is now the **fallback path** only — when sheets are baked the client
+   loads 4 WebP files instead. `art_sm` still feeds the CSS fallback grid.
 6. ~~Glass defaults~~ LOCKED 12 Jun by Uday via ?glass tuner:
    `--glass-fill:0; --glass-blur:7px; --glass-sat:160%` (pure refraction).
 
@@ -207,6 +206,44 @@ CSS fallback; reduced-motion respected; mobile caps DPR/texture counts.
 `similarity` / `genres` (artist→family for the nebulae) / `trendsetters` /
 `facts`. Crossovers and re-shares are derived client-side from
 `tracks.shared_by`. ~450 KB raw.
+
+## Galaxy cover-atlas (pre-baked in CI — SHIPPED 14 Jun)
+
+The galaxy used to fetch ~950 individual covers and composite the atlas in the
+browser. Going all-covers-sharp on mobile meant 950 requests × 30 KB (300px) =
+**~29 MB → ~30 s on a phone.** Now `dashboard/atlas.py` bakes the atlas **once in
+CI** and the client just loads the sheets: **4 WebP files, ~2.9 MB, ~0 cover
+requests.**
+
+- **Layout (must match between baker & client):** `CELL=128`, `GRID=16`,
+  `PER=256` covers/sheet, `2048²` sheets. Both `dashboard/atlas.py` and
+  `site/js/visuals/galaxy.js` hardcode these — change them together.
+- **Permanent, append-only slots.** Track order in `data.json` is first-share
+  chronological and append-only, so cover N keeps slot N forever
+  (`slot → sheet = slot//PER`, `cell = slot%PER`). Persisted in
+  **`dashboard/atlas_manifest.json`** (`uris` list = slot order, `sheets` =
+  current filenames, `failed` = slots awaiting a good bake).
+- **Delta / frozen sheets.** A sheet is rebuilt only if it has no file, gained a
+  new slot, or holds a previously-failed cell. A full sheet with none of those
+  is **frozen** — never re-baked. So per-run work is O(new covers): only the
+  tail sheet churns. Scales to thousands (lazy-load sheets by camera distance if
+  it ever gets huge).
+- **Cache-busting:** sheet filename carries a content hash
+  (`galaxy-<idx>.<hash>.webp`), referenced from `data.json` → browsers never
+  serve a stale sheet. Identical content ⇒ identical hash ⇒ git sees no change.
+- **`data.json`:** each baked track gets `cell:[sheet,cellInSheet]`; top-level
+  `atlas:{cell,grid,sheets:[...]}`. A track with no `cell` (no art, or a failed
+  bake) falls back to the colored-quad / per-cover path — the galaxy never hard-
+  breaks, and local dev without baked sheets still works.
+- **CI:** `generate.py` calls `bake_atlas` best-effort (a bake error won't sink
+  the run). The workflow commits `site/atlas/` (`git add -A`) + the manifest.
+- **Force a re-bake** (e.g. an album's art changed): delete that URI's entry
+  from `atlas_manifest.json` (à la `apple_link_failures.json`).
+- **Security:** covers come from Spotify's CDN but are treated as untrusted —
+  Content-Type + byte cap before decode, `Image.MAX_IMAGE_PIXELS` bomb guard,
+  per-cover try/except. Sheets are same-origin, which also removes the old
+  cross-origin canvas-tainting concern. WebP quality (`WEBP_QUALITY=82`) is the
+  size/sharpness knob.
 
 ## Gotchas & decisions (hard-won, don't relearn)
 

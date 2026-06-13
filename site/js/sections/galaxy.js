@@ -10,6 +10,7 @@ export function initGalaxy(ctx) {
     uri, // "spotify:track:<id>" — the visual builds the open.spotify.com link from it
     art: t.art,
     artSm: t.art_sm || "",
+    cell: t.cell, // [sheet, cellInSheet] into the pre-baked atlas, if present
     name: t.name,
     artists: (t.artists || []).join(", "),
     by: t.first?.by || "",
@@ -58,7 +59,7 @@ export function initGalaxy(ctx) {
 
   ctx.lazyVisual(sec, async () => {
     const mod = await import("../visuals/galaxy.js");
-    return mod.initGalaxy(stage, items, ctx.visualOpts());
+    return mod.initGalaxy(stage, items, ctx.visualOpts({ atlas: ctx.data.atlas }));
   }, buildFallback, (h) => { handle = h; });
 
   // pin the stage on desktop for a beat; mobile keeps natural flow
