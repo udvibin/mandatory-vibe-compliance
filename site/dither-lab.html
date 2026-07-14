@@ -148,6 +148,25 @@
 </section>
 
 <section>
+  <h2>0 · the standalone renderer — no Chart.js</h2>
+  <p>`ditherChart()` from <code>dither-chart.js</code> owns the whole render path: scales, grid, axes, the dither
+     surface, the scrub crosshair, tooltip and legend. Zero dependencies. Multi-series (top 4 bois by month),
+     so stacking and the legend spotlight have something to do — <b>hover a legend entry to spotlight it, click to lock</b>.</p>
+  <div class="knobs">
+    <label>type <select id="dc-type"><option>area</option><option>line</option><option>bar</option></select></label>
+    <label>stack <select id="dc-stack">
+      <option value="default">default</option><option value="stacked">stacked</option><option value="percent">percent</option></select></label>
+    <label>variant <select id="dc-variant">
+      <option>gradient</option><option>dotted</option><option>hatched</option><option>solid</option></select></label>
+    <label>bloom <select id="dc-bloom">
+      <option>off</option><option>low</option><option>high</option><option>aura</option></select></label>
+    <label>sparkles <input type="checkbox" id="dc-stars" checked></label>
+  </div>
+  <div class="panel"><b>ditherChart — its own engine</b>
+    <div class="chartbox" id="dc-host" style="height:380px"></div></div>
+</section>
+
+<section>
   <h2>5 · gradient washes</h2>
   <p>Static one-shot paints — cheap enough for section fades, card backdrops, the outro footer.</p>
   <div class="washes" id="washes"></div>
@@ -365,6 +384,51 @@ try {
   $("#btn-bloom").onchange = paintButtons;
   $("#btn-stars").onchange = paintButtons;
 } catch (e) { errs.push("buttons: " + e.message); }
+
+/* ------------------------------------------------- 0 · standalone renderer */
+try {
+  const { ditherChart } = await import("./js/visuals/dither-chart.js");
+  // top 4 bois by shares → one series each, monthly
+  const top4 = Object.entries(data.people)
+    .sort((a, b) => b[1].totals.shares - a[1].totals.shares)
+    .slice(0, 4)
+    .map(([name]) => name);
+  const rows = months.map((m) => {
+    const by = data.timeline[m].by || {};
+    const row = { month: m };
+    for (const n of top4) row[n] = by[n] || 0;
+    return row;
+  });
+  const series = () => top4.map((n) => ({
+    key: n, label: n,
+    color: PERSON_COLORS[n] || "#9db4bd",
+    variant: $("#dc-variant").value,
+  }));
+
+  const chart = ditherChart($("#dc-host"), {
+    type: "area", data: rows, xKey: "month", series: series(),
+    stackType: "default", sparkles: true, bloom: "off",
+    formatX: (m) => fmtMonth(m),
+    formatValue: (v) => `${v} song${v === 1 ? "" : "s"}`,
+  });
+
+  // 60 months × 4 series = 240 bars over ~1300px — ~2px each, unreadable. Bars want
+  // fewer categories, so feed them the last 12 months. (A renderer limit, not a bug.)
+  const sync = () => {
+    const type = $("#dc-type").value;
+    chart.update({
+      type,
+      data: type === "bar" ? rows.slice(-12) : rows,
+      stackType: $("#dc-stack").value,
+      bloom: $("#dc-bloom").value,
+      sparkles: $("#dc-stars").checked,
+      series: series(),
+    });
+  };
+  for (const id of ["#dc-type", "#dc-stack", "#dc-variant", "#dc-bloom", "#dc-stars"]) {
+    $(id).onchange = sync;
+  }
+} catch (e) { errs.push("ditherChart: " + e.message); console.error(e); }
 
 /* -------------------------------------------------------------- 5 · washes */
 try {
