@@ -1,5 +1,12 @@
-// 8 · the heartbeat — monthly shares, Chart.js with a div-bar fallback
+// 8 · the heartbeat — monthly shares, Chart.js with a div-bar fallback.
+// The area fill is the dither texture (see visuals/dither.js); Chart.js still owns the
+// axes, tooltip, line and animation.
 import { $, el, fmtMonth, argmax } from "../data.js";
+import { ditherFillPlugin } from "../visuals/dither-chartjs.js";
+
+// the violet already in the person palette (Shaury) — in-family with the cream/coral
+// tokens, and it reads against the orange the background shader blooms through here
+const TL_PURPLE = "#a98ad6";
 
 export function initTimeline(ctx) {
   const sec = $("#timeline");
@@ -25,24 +32,30 @@ export function initTimeline(ctx) {
       const { default: Chart } = await import("chart.js/auto");
       const canvas = $("#timeline-chart");
       sec.classList.add("viz-on");
+
+      // ordered-dither area fill: dense at the floor, dissolving up into the line, with
+      // winking sparkles and a hover lift. `fill: false` so Chart.js paints no gradient
+      // underneath it.
+      const dither = ditherFillPlugin({
+        color: TL_PURPLE,
+        variant: "gradient",
+        bloom: "off",               // ponytail: needs a 3rd canvas; add if it wants a glow
+        starCanvas: $("#timeline-stars"),
+        sparkles: !ctx.reduced,
+        hoverLift: !ctx.reduced,
+        animate: !ctx.reduced,
+      });
+
       new Chart(canvas, {
         type: "line",
         data: {
           labels: months,
           datasets: [{
             data: vals,
-            borderColor: "#7cc4dc",
+            borderColor: TL_PURPLE,
             borderWidth: 2,
             tension: 0.35,
-            fill: true,
-            backgroundColor(c) {
-              const { ctx: g, chartArea: a } = c.chart;
-              if (!a) return "rgba(62,143,174,.18)";
-              const grad = g.createLinearGradient(0, a.bottom, 0, a.top);
-              grad.addColorStop(0, "rgba(62,143,174,0)");
-              grad.addColorStop(1, "rgba(124,196,220,.30)");
-              return grad;
-            },
+            fill: false,
             pointRadius: (c) => (c.dataIndex === peak ? 4 : 0),
             pointBackgroundColor: "#e4593b",
             pointHoverRadius: 5,
@@ -76,7 +89,8 @@ export function initTimeline(ctx) {
             },
           },
         },
-        plugins: [{
+        // one plugins array only — a second key here would silently shadow the first
+        plugins: [dither, {
           id: "peakLabel", // annotate the biggest month
           afterDatasetsDraw(chart) {
             const pt = chart.getDatasetMeta(0).data[peak];

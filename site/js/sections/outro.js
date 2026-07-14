@@ -1,5 +1,6 @@
 // 10 · outro — authored facts + last sync
 import { $, el, esc, trackUrl } from "../data.js";
+import { ditherButton } from "../visuals/dither.js";
 
 export function initOutro(ctx) {
   const wrap = $("#facts");
@@ -36,6 +37,23 @@ export function initOutro(ctx) {
     card.dataset.reveal = "";
     card.append(el("h3", null, esc(f.title)), el("p", null, factHtml(f.text)));
     wrap.append(card);
+  }
+
+  // the nerd-view CTA gets the dither fill: it thickens on hover, denser still on press.
+  // It stays a real <a> — the canvas mounts behind the existing text.
+  const cta = $(".nerd-cta");
+  if (cta) {
+    try {
+      // the site's cyan (what the heartbeat used before it went purple). `gradient` gives
+      // a real density ramp — dense at the floor, dissolving upward — where `dotted` was
+      // a flat, even field. Pulled back so the label keeps its contrast.
+      ditherButton(cta, {
+        color: "#7cc4dc", variant: "gradient", opacity: 0.55, sparkles: !ctx.reduced,
+      });
+      cta.classList.add("dith"); // only now: drops the CSS background fallback
+    } catch (err) {
+      console.warn("[viz fallback] nerd cta:", err);
+    }
   }
 
   const gen = ctx.data.meta?.generated;

@@ -343,6 +343,9 @@ body.bg-live #bg-fallback{animation:none}
   background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 30%,transparent),color-mix(in srgb,var(--pc) 82%,transparent));
 }
 .bar-row:hover .bar{background:linear-gradient(90deg,color-mix(in srgb,var(--pc) 45%,transparent),var(--pc))}
+/* dithered bars: the canvas carries the fill, so the CSS gradient steps aside. The
+   gradient above stays as the fallback if dither.js fails to load. */
+.bar.dith,.bar-row:hover .bar.dith{background:none}
 .bar-label{
   position:absolute;inset:0;display:flex;align-items:center;gap:.7rem;
   padding:0 1rem;z-index:1;text-shadow:0 1px 6px rgba(0,0,0,.55);
@@ -363,6 +366,7 @@ body.bg-live #bg-fallback{animation:none}
 .carousel>*{scroll-snap-align:center}
 .card{
   --pc:var(--ink-dim);
+  position:relative;  /* anchors .card-av */
   border:1px solid var(--line);border-top:2px solid var(--pc);border-radius:4px;
   padding:1.4rem 1.3rem;
   background:
@@ -375,6 +379,14 @@ body.bg-live #bg-fallback{animation:none}
   font-family:var(--display);font-style:italic;font-weight:520;margin:0;font-size:1.7rem;
   color:var(--pc);line-height:1.1;
 }
+/* generative dither glyph — a square as tall as the name + count block it sits beside,
+   inset by the card's own padding so it lines up with the text's margins */
+.card-av{
+  position:absolute;top:1.4rem;right:1.3rem;
+  width:96px;height:96px;border-radius:6px;opacity:.95;
+}
+/* keep the name and the count clear of it */
+.card h3,.card .big{padding-right:106px}
 .card .big{font-family:var(--display);font-size:2.4rem;font-weight:600;line-height:1;font-variant-numeric:lining-nums}
 .card .big small{font:500 .68rem var(--body);color:var(--ink-dim);display:block;margin-top:.4rem;letter-spacing:.16em;text-transform:uppercase}
 .card .row{display:flex;justify-content:space-between;gap:1rem;font-size:.86rem;border-top:1px solid var(--line);padding-top:.55rem}
@@ -434,6 +446,10 @@ a.track:hover .tname{color:var(--coral)}
 /* ---------- 8 timeline ---------- */
 .chart-wrap{position:relative;height:320px}
 @media (min-width:821px){.chart-wrap{height:420px}}
+/* sparkle layer for the dithered fill — sized in device px by the plugin, so it must be
+   pinned to the box or it renders at its intrinsic size and spills out of the section */
+#timeline-stars{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.viz-fail #timeline-stars{display:none}
 .month-bars{
   position:absolute;inset:0;align-items:flex-end;gap:2px;
   padding-bottom:1.4rem;display:none;
@@ -494,6 +510,11 @@ a.track:hover .tname{color:var(--coral)}
   border-color:var(--coral);background:rgba(10,22,29,.55);
   transform:translateY(-2px);color:inherit;
 }
+/* dithered CTA: the canvas carries the fill, so the flat backgrounds step aside. The
+   rules above stay as the fallback if dither.js fails to load. */
+.nerd-cta.dith,.nerd-cta.dith:hover{background:none;overflow:hidden}
+/* the label sits on the coral dither now — cream reads, coral-on-coral does not */
+.nerd-cta.dith .go{color:var(--ink)}
 .nerd-cta .big{font-family:var(--display);font-style:italic;font-weight:480;font-size:1.25rem}
 .nerd-cta .go{
   color:var(--coral);font-size:.78rem;font-weight:700;

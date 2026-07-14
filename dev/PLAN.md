@@ -245,7 +245,61 @@ requests.**
   cross-origin canvas-tainting concern. WebP quality (`WEBP_QUALITY=82`) is the
   size/sharpness knob.
 
+## Dither kit (SHIPPED 14 Jul — `site/js/visuals/dither.js`)
+
+Vanilla port of **dither-kit** (tripwire.sh/dither-kit, by ripgrim). Upstream ships
+React/TSX + Tailwind via a shadcn registry (deps: motion, d3-scale, d3-shape, clsx,
+tailwind-merge) — unusable here (no npm, no build). But none of the *pixels* were React:
+the paint math is plain canvas-2D. So the paint core (`palette.ts`, `pixel.ts`,
+`dither-paint.ts`) is copied verbatim and the React components became plain mounts.
+
+- `site/js/visuals/dither.js` — **zero imports, zero deps.** Paint core (Bayer matrix,
+  `paintColumn`, bloom, FNV-1a + xorshift PRNG), the four variants, sparkles, hover lift,
+  plus `ditherButton` / `ditherGradient` / `ditherAvatar`. Liftable to its own repo as-is.
+- `site/js/visuals/dither-chartjs.js` — the **only** file that knows Chart.js exists.
+  `ditherFillPlugin` paints the dither surface into a Chart.js line chart's plot rect.
+  Not from upstream (it renders its own charts, so it never needed a bridge) — ours.
+- Live in: `#timeline` (area fill, purple `#a98ad6`), `#leaderboard` (bar fills, each
+  boi's hex), `#bois` (96px generative avatars), the nerd-view CTA (dithered button).
+  Every one keeps its old CSS as fallback and is wrapped in try/catch.
+
+**How it works, in one line:** one 4×4 Bayer threshold matrix; light a pixel when
+`density > BAYER[y&3][x&3]`. Everything (chart fill, button, wash, avatar) differs only
+in what feeds `density`. Hover lift *subtracts from the threshold*, so the texture gets
+denser, not just brighter.
+
+Not ported (upstream still has them): bar/pie/radar renderers, sparkline, scrub tooltip,
+legend spotlight, stacking, multi-series. `paintColumn` already takes the `stacked` /
+`dim` / `sparse` args those need — the hooks are in.
+
 ## Gotchas & decisions (hard-won, don't relearn)
+
+- **Dither: colour vs opacity.** Every pixel is the series' *one* fill colour; only alpha
+  varies ("off" cells are painted at 40% of "on"). Never introduce a lighter shade — it
+  reads as stray white specks on a light background. This is why the whole kit survives
+  both themes.
+- **`fillOf()` takes hex/rgb, not just a hue.** A hue throws away saturation and
+  lightness — Ankit's grey `#9db4bd` comes back a *vivid teal* through `hueOfHex`. Pass
+  the real hex for anything that must keep its colour.
+- **The chart fill must sample the LINE, not the points.** Chart.js draws a bezier
+  (`tension`); straight-lining between data points makes the fill cut corners and leak
+  past the curve on sharp peaks. Use `meta.dataset.interpolate({x}, "x")`.
+- **Re-read the surface every draw.** Chart.js *animates* its points — a surface captured
+  once freezes the fill at whatever height the entrance was at (it looked ~40% tall).
+- **The entrance reveal must drive its own rAF.** Chart.js stops calling `draw()` the
+  moment *its* animation ends, stranding a longer reveal partway — leaves a hard vertical
+  edge where the fill just stops.
+- **Never wink sparkles through `chart.draw()`.** Re-rendering every axis/tick 10×/sec to
+  move a few 1px stars pegs the compositor. Sparkles live on their own overlay canvas and
+  ride one shared page-wide 10Hz timer (measured cost of sparkling *everything*: nil —
+  60fps, identical median and worst frame).
+- **Chart.js config: one `plugins` key only.** A second `plugins:` in the same object
+  literal silently shadows the first — the dither plugin vanished with no error at all.
+- **Overlay canvases need an explicit CSS size.** The plugin sizes them in *device* px; a
+  canvas without `width/height:100%` renders at its intrinsic size and spills out of the
+  section.
+- A dither fill behind real text needs `opacity` pulled back (and/or the `dotted`
+  variant): a solid `gradient` coral swallowed the coral CTA label whole.
 
 - **Shridhar archive is in UK time** (exported on his phone) — timestamps
   converted Europe/London → IST in backfill (validated on overlap).
@@ -279,6 +333,10 @@ requests.**
 - `dev/verify_site.py` — full-page Playwright check (console errors, failed
   requests, screenshots per section into `dev/screens/`, gitignored)
 - `dev/verify_bg.py` — background-specific screenshots/check
+- `site/dither-lab.html` — dither kit lab: the timeline fill (before/after, stacked),
+  leaderboard bars, the 13 avatars, buttons and gradient washes, all on real `data.json`,
+  with live knobs (variant / colour / bloom / cell / sparkles). Use it to tune before
+  touching a section.
 - `site/mocks.html` — reference mock page: the shipped genre nebulae +
   the PARKED time machine, real data; `dev/verify_mocks.py` checks +
   screenshots. (The nebulae itself is live in `#constellation`.)

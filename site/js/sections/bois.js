@@ -1,5 +1,6 @@
 // 5 · the bois — one card per person, scroll-snap carousel
 import { $, el, colorOf, argmax, fmtDate, esc, trackUrl } from "../data.js";
+import { ditherAvatar } from "../visuals/dither.js";
 
 const HOUR_LABELS = ["night gremlin", "morning curator", "afternoon shift", "evening DJ"];
 const hourVibe = (h) => HOUR_LABELS[Math.floor(h / 6)];
@@ -57,6 +58,22 @@ export function initBois(ctx) {
       <div class="big">${p.totals.shares}<small>shares · ${p.totals.unique} unique</small></div>
       ${rows.join("")}
     `;
+
+    // generative glyph in the card's top-right dead space — seeded from the display name,
+    // so a boi's avatar never changes, painted in his own colour
+    const glyph = el("div", "card-av");
+    card.prepend(glyph);
+    try {
+      ditherAvatar(glyph, {
+        name: p.display || name,
+        color: colorOf(name),
+        sparkles: !ctx.reduced,
+        animate: !ctx.reduced,
+      });
+    } catch (err) {
+      console.warn("[viz fallback] boi avatar:", err);
+      glyph.remove();
+    }
 
     // 24-bar hour sparkline in the person's colour, instant value on hover/tap
     if (p.hours?.length === 24) {

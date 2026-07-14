@@ -1,5 +1,8 @@
-// 4 · leaderboard — chunky DOM bars, year filter, instant per-row tooltip
+// 4 · leaderboard — chunky DOM bars, year filter, instant per-row tooltip.
+// Each bar's fill is a dithered wash in the boi's own colour (visuals/dither.js); if that
+// import fails the CSS gradient underneath still shows, so the section never goes blank.
 import { $, el, chip, colorOf, esc, instantTip } from "../data.js";
+import { ditherGradient } from "../visuals/dither.js";
 
 export function initLeaderboard(ctx) {
   const { people, years } = ctx.data;
@@ -7,6 +10,7 @@ export function initLeaderboard(ctx) {
   const pillsEl = $("#year-pills");
   const tip = instantTip();
   let current = "All";
+  let barWashes = []; // cleanups — re-rendered on every year filter change
   addEventListener("scroll", tip.hide, { passive: true });
 
   /* instant tooltip: exact count + year-by-year breakdown */
@@ -36,6 +40,8 @@ export function initLeaderboard(ctx) {
 
   function render(year) {
     current = year;
+    barWashes.forEach((off) => off());
+    barWashes = [];
     barsEl.innerHTML = "";
     const rows = counts(year);
     const max = rows[0]?.[1] || 1;
@@ -46,6 +52,17 @@ export function initLeaderboard(ctx) {
       row.append(bar, el("div", "bar-label", `<b>${esc(name)}</b><span>${count}</span>`));
       wireTip(row, name, count);
       barsEl.append(row);
+      try {
+        // hoverTarget is the row, so the bar lifts wherever the pointer enters it —
+        // not only over the (possibly short) bar itself
+        barWashes.push(ditherGradient(bar, {
+          from: colorOf(name), direction: "right", cell: 2,
+          hover: true, hoverTarget: row, sparkles: !ctx.reduced,
+        }));
+        bar.classList.add("dith"); // only now: drops the CSS gradient fallback
+      } catch (err) {
+        console.warn("[viz fallback] leaderboard bar:", err);
+      }
       return { bar, w: Math.max(8, (count / max) * 100) };
     });
     // animate widths — gsap when available, CSS transition otherwise

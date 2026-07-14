@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dither lab — dither-kit, ported to vanilla</title>
+<style>
+  :root{
+    --bg-0:#050a0e; --bg-1:#081218; --ink:#eee9dd; --muted:#9db4bd;
+    --hairline:rgba(157,180,189,.18);
+    --coral:#e4593b; --cyan:#7cc4dc; --teal:#3e8fae;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-0);color:var(--ink);
+       font:14px/1.55 "Space Grotesk",system-ui,sans-serif}
+  header{padding:28px 24px 8px;border-bottom:1px solid var(--hairline)}
+  h1{margin:0;font-size:20px;letter-spacing:.04em}
+  header p{margin:.4em 0 0;color:var(--muted);font-size:12px;max-width:70ch}
+  section{padding:34px 24px;border-bottom:1px solid var(--hairline)}
+  h2{margin:0 0 4px;font-size:15px;letter-spacing:.05em;text-transform:lowercase}
+  h2 + p{margin:0 0 18px;color:var(--muted);font-size:12px;max-width:80ch}
+  .knobs{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-bottom:16px;
+         font-size:11px;color:var(--muted)}
+  .knobs label{display:flex;gap:6px;align-items:center}
+  select,input[type=range]{background:var(--bg-1);color:var(--ink);border:1px solid var(--hairline);
+    border-radius:4px;padding:3px 6px;font:inherit;font-size:11px}
+  /* before/after stacked full-width, so the "after" is judged at real size */
+  .two{display:grid;gap:20px}
+  .panel{position:relative;background:var(--bg-1);border:1px solid var(--hairline);
+         border-radius:8px;padding:12px}
+  .panel b{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-bottom:8px}
+  .chartbox{position:relative;height:340px}
+  .chartbox canvas{position:absolute;inset:0}
+  /* the bloom layer is sized in device pixels by the plugin — pin it to the box or it
+     renders at its intrinsic size and spills out of the panel */
+  #chart-bloom,#chart-stars{width:100%;height:100%;pointer-events:none}
+
+  /* bars — .now is the site's current CSS gradient fill, .dith gets a canvas wash */
+  .bars{display:grid;gap:7px}
+  .bar-row{display:grid;grid-template-columns:74px 1fr 44px;gap:10px;align-items:center;font-size:12px}
+  .bar-row .who{color:var(--muted);text-align:right}
+  .bar-row .n{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+  .track{height:20px;border-radius:3px;overflow:hidden}
+  .fill{height:100%;position:relative;border-radius:3px}
+  .now .fill{background:linear-gradient(90deg,
+      color-mix(in srgb,var(--pc) 30%,transparent),color-mix(in srgb,var(--pc) 82%,transparent))}
+
+  .avatars{display:flex;flex-wrap:wrap;gap:18px}
+  .av{width:64px;text-align:center;font-size:11px;color:var(--muted)}
+  .av .glyph{position:relative;width:64px;height:64px;border-radius:6px;overflow:hidden}
+
+  .btns{display:flex;flex-wrap:wrap;gap:12px}
+  .dbtn{position:relative;isolation:isolate;overflow:hidden;border:0;border-radius:6px;
+        padding:9px 18px;color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+  .washes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  .wash{position:relative;height:130px;border-radius:8px;overflow:hidden;
+        border:1px solid var(--hairline);background:var(--bg-1)}
+  .wash span{position:absolute;left:10px;bottom:8px;font-size:11px;color:var(--muted)}
+
+  #status{position:fixed;right:12px;bottom:10px;z-index:50;font-size:11px;opacity:.75;
+          background:rgba(5,10,14,.9);border:1px solid var(--hairline);border-radius:5px;
+          padding:5px 9px;white-space:pre-wrap;pointer-events:none}
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "chart.js/auto": "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/auto/+esm"
+  }
+}
+</script>
+</head>
+<body>
+
+<header>
+  <h1>dither lab</h1>
+  <p>dither-kit (tripwire.sh) ported to vanilla ES modules in <code>js/visuals/dither.js</code> — no React, no Tailwind, no npm.
+     Everything below runs on the real <code>data.json</code>. Left panel = what the site does today, right = the dithered version.</p>
+</header>
+
+<section>
+  <h2>1 · the heartbeat — timeline area fill</h2>
+  <p>Chart.js keeps the axes, tooltip, animation and the peak label. Only the area fill changes: the dataset's
+     <code>backgroundColor</code> gradient is switched off and <code>ditherFillPlugin</code> blits the Bayer texture over the plot rect.</p>
+  <div class="knobs">
+    <label>variant <select id="tl-variant">
+      <option>gradient</option><option>dotted</option><option>hatched</option><option>solid</option></select></label>
+    <label>colour <select id="tl-color">
+      <option>blue</option><option>green</option><option>purple</option><option>pink</option><option>orange</option><option>red</option><option>grey</option></select></label>
+    <label>bloom <select id="tl-bloom">
+      <option>off</option><option>low</option><option>high</option><option>aura</option></select></label>
+    <label>sparkles <input type="checkbox" id="tl-stars" checked></label>
+    <em style="opacity:.7;font-style:normal">← hover the chart itself: the dither eases denser and the stars brighten</em>
+  </div>
+  <div class="two">
+    <div class="panel"><b>now — Chart.js linear gradient</b>
+      <div class="chartbox"><canvas id="chart-now"></canvas></div></div>
+    <div class="panel"><b>dithered — ditherFillPlugin (hover it)</b>
+      <div class="chartbox">
+        <canvas id="chart-dith"></canvas>
+        <canvas id="chart-stars"></canvas>
+        <canvas id="chart-bloom"></canvas>
+      </div></div>
+  </div>
+</section>
+
+<section>
+  <h2>2 · the leaderboard — bar fills</h2>
+  <p>Same bars, same per-person colours. The dithered side drops <code>ditherGradient</code> (direction <code>right</code>, hue from each boi's hex) into the fill div.</p>
+  <div class="knobs">
+    <label>cell <input type="range" id="bar-cell" min="1" max="6" step="1" value="2"></label>
+    <label>bloom <select id="bar-bloom">
+      <option>off</option><option>low</option><option>high</option><option>aura</option></select></label>
+    <label>sparkles <input type="checkbox" id="bar-stars"></label>
+    <em style="opacity:.7;font-style:normal">← hover a row: the bar lifts too</em>
+  </div>
+  <div class="two">
+    <div class="panel"><b>now — CSS linear-gradient</b><div class="bars now" id="bars-now"></div></div>
+    <div class="panel"><b>dithered — ditherGradient</b><div class="bars dith" id="bars-dith"></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>3 · the bois — generative avatars</h2>
+  <p>Seeded from the display name via FNV-1a → xorshift32, so a boi's glyph never changes. Hue is drawn from the same
+     stream, or overridden with his site colour.</p>
+  <div class="knobs">
+    <label>hue <select id="av-hue">
+      <option value="person">from his site colour</option><option value="name">from the name (kit default)</option></select></label>
+    <label>mirror <select id="av-mirror">
+      <option>auto</option><option>horizontal</option><option>vertical</option></select></label>
+    <label>bloom <select id="av-bloom">
+      <option>low</option><option>off</option><option>high</option><option>aura</option></select></label>
+    <label>sparkles <input type="checkbox" id="av-stars"></label>
+    <button id="av-replay" class="dbtn" style="background:#0e1c24">replay entrance</button>
+  </div>
+  <div class="avatars" id="avatars"></div>
+</section>
+
+<section>
+  <h2>4 · buttons</h2>
+  <p>Real <code>&lt;button&gt;</code> elements with the canvas behind the label. Hover eases the dither denser, pressing lifts it further.</p>
+  <div class="knobs">
+    <label>bloom <select id="btn-bloom">
+      <option>off</option><option>low</option><option>high</option><option>aura</option></select></label>
+    <label>sparkles <input type="checkbox" id="btn-stars"></label>
+  </div>
+  <div class="btns" id="btns"></div>
+</section>
+
+<section>
+  <h2>5 · gradient washes</h2>
+  <p>Static one-shot paints — cheap enough for section fades, card backdrops, the outro footer.</p>
+  <div class="washes" id="washes"></div>
+</section>
+
+<div id="status">booting…</div>
+
+<script type="module">
+import Chart from "chart.js/auto";
+import { ditherGradient, ditherAvatar, ditherButton, hueOfHex, applyBloom } from "./js/visuals/dither.js";
+import { ditherFillPlugin } from "./js/visuals/dither-chartjs.js";
+
+/* the site's real per-person palette (js/data.js) */
+const PERSON_COLORS = {
+  Uday: "#e4593b", Shridhar: "#7cc4dc", Pratyush: "#ef8d9c", Ammar: "#e8b15a",
+  Dhawal: "#3e8fae", Sameer: "#a8c46f", Dhruvajit: "#d98c66", Kunal: "#6f8fd6",
+  Tushar: "#f2d06b", Praneet: "#c4536e", Karan: "#6fc4a8", Shaury: "#a98ad6",
+  Ankit: "#9db4bd",
+};
+const VARIANTS = ["gradient", "dotted", "hatched", "solid"];
+const COLORS = ["blue", "green", "purple", "pink", "orange", "red"];
+
+const $ = (s) => document.querySelector(s);
+const status = $("#status");
+const log = (m) => { status.textContent = m; console.log("[dither-lab]", m); };
+const fmtMonth = (ym) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+};
+
+let data;
+try {
+  const res = await fetch("./data.json");
+  if (!res.ok) throw new Error("data.json " + res.status);
+  data = await res.json();
+} catch (e) { log("data error: " + e.message); throw e; }
+
+const months = Object.keys(data.timeline).sort();
+const vals = months.map((m) => data.timeline[m].total);
+const peak = vals.indexOf(Math.max(...vals));
+const errs = [];
+
+/* ---------------------------------------------------------------- 1 · chart */
+// Both charts share this config; the dithered one turns `fill` off and adds the plugin.
+const baseCfg = () => ({
+  type: "line",
+  data: { labels: months, datasets: [{ data: vals, borderColor: "#7cc4dc", borderWidth: 2, tension: 0.35,
+    pointRadius: (c) => (c.dataIndex === peak ? 4 : 0), pointBackgroundColor: "#e4593b", pointHoverRadius: 5 }] },
+  options: {
+    maintainAspectRatio: false, animation: { duration: 900 },
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false }, tooltip: { displayColors: false, animation: { duration: 60 },
+      callbacks: { title: (it) => fmtMonth(months[it[0].dataIndex]), label: (it) => `${it.parsed.y} songs` } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: "#9db4bd", autoSkip: false, maxRotation: 0,
+           callback: (_, i) => (months[i].endsWith("-01") ? months[i].slice(0, 4) : "") } },
+      y: { beginAtZero: true, grid: { color: "rgba(157,180,189,.08)" }, ticks: { color: "#9db4bd", maxTicksLimit: 5 } },
+    },
+  },
+});
+
+try {
+  // left: exactly what timeline.js does today
+  const now = baseCfg();
+  Object.assign(now.data.datasets[0], {
+    fill: true,
+    backgroundColor(c) {
+      const { ctx: g, chartArea: a } = c.chart;
+      if (!a) return "rgba(62,143,174,.18)";
+      const grad = g.createLinearGradient(0, a.bottom, 0, a.top);
+      grad.addColorStop(0, "rgba(62,143,174,0)");
+      grad.addColorStop(1, "rgba(124,196,220,.30)");
+      return grad;
+    },
+  });
+  new Chart($("#chart-now"), now);
+
+  // right: same chart, dithered fill
+  const plugin = ditherFillPlugin({
+    color: "blue", variant: "gradient",
+    bloom: "off", bloomCanvas: $("#chart-bloom"),
+    starCanvas: $("#chart-stars"), sparkles: true, hoverLift: true,
+  });
+  const dith = baseCfg();
+  dith.data.datasets[0].fill = false;
+  dith.plugins = [plugin];
+  const chart = new Chart($("#chart-dith"), dith);
+
+  const redraw = () => chart.draw();
+  $("#tl-variant").onchange = (e) => { plugin.opts.variant = e.target.value; redraw(); };
+  $("#tl-color").onchange = (e) => { plugin.opts.color = e.target.value; redraw(); };
+  $("#tl-stars").onchange = (e) => { plugin.opts.sparkles = e.target.checked; redraw(); };
+  $("#tl-bloom").onchange = (e) => {
+    plugin.opts.bloom = e.target.value;
+    plugin.opts.bloomCanvas = e.target.value === "off" ? null : $("#chart-bloom");
+    applyBloom($("#chart-bloom"), e.target.value);
+    redraw();
+  };
+  // the plugin paints the bloom canvas; the *style* on it is ours to set
+  applyBloom($("#chart-bloom"), "off");
+} catch (e) { errs.push("chart: " + e.message); }
+
+/* ----------------------------------------------------------------- 2 · bars */
+const top = Object.entries(data.people)
+  .map(([name, p]) => [name, p.totals.shares])
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 8);
+const maxShares = top[0][1];
+
+function buildBars(host, dithered) {
+  host.innerHTML = "";
+  const cleanups = [];
+  for (const [name, n] of top) {
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.style.setProperty("--pc", PERSON_COLORS[name] || "#9db4bd");
+    const fill = document.createElement("div");
+    fill.className = "fill";
+    fill.style.width = `${(n / maxShares) * 100}%`;
+    const track = document.createElement("div");
+    track.className = "track";
+    track.append(fill);
+    row.innerHTML = `<div class="who">${name}</div>`;
+    row.append(track);
+    const num = document.createElement("div");
+    num.className = "n";
+    num.textContent = n;
+    row.append(num);
+    host.append(row);
+    if (dithered) cleanups.push({ fill, name, row });
+  }
+  return cleanups;
+}
+
+let barCleanups = [];
+function paintBars() {
+  barCleanups.forEach((fn) => fn());
+  const slots = buildBars($("#bars-dith"), true);
+  const cell = +$("#bar-cell").value;
+  const bloom = $("#bar-bloom").value;
+  // hoverTarget is the whole row, so the bar lifts wherever you enter the row —
+  // not only when the pointer lands on the (short) bar itself
+  const sparkles = $("#bar-stars").checked;
+  // `from` takes the boi's real hex now — no hue flattening, so Ankit's grey stays grey
+  barCleanups = slots.map(({ fill, name, row }) =>
+    ditherGradient(fill, {
+      from: PERSON_COLORS[name] || "#9db4bd",
+      direction: "right", cell, opacity: 1, bloom, sparkles,
+      hover: true, hoverTarget: row,
+    })
+  );
+}
+try {
+  buildBars($("#bars-now"), false);
+  paintBars();
+  $("#bar-cell").oninput = paintBars;
+  $("#bar-bloom").onchange = paintBars;
+  $("#bar-stars").onchange = paintBars;
+} catch (e) { errs.push("bars: " + e.message); }
+
+/* --------------------------------------------------------------- 3 · avatars */
+const bois = Object.keys(data.people).sort();
+let avCleanups = [];
+function paintAvatars() {
+  avCleanups.forEach((fn) => fn());
+  const host = $("#avatars");
+  host.innerHTML = "";
+  const usePersonHue = $("#av-hue").value === "person";
+  const mirror = $("#av-mirror").value;
+  const bloom = $("#av-bloom").value;
+  avCleanups = bois.map((name) => {
+    const card = document.createElement("div");
+    card.className = "av";
+    const glyph = document.createElement("div");
+    glyph.className = "glyph";
+    card.append(glyph, document.createTextNode(name));
+    host.append(card);
+    return ditherAvatar(glyph, {
+      name,
+      hue: usePersonHue ? hueOfHex(PERSON_COLORS[name] || "#9db4bd") : undefined,
+      mirror, bloom, animate: true, sparkles: $("#av-stars").checked,
+    });
+  });
+}
+try {
+  paintAvatars();
+  $("#av-hue").onchange = paintAvatars;
+  $("#av-mirror").onchange = paintAvatars;
+  $("#av-bloom").onchange = paintAvatars;
+  $("#av-stars").onchange = paintAvatars;
+  $("#av-replay").onclick = paintAvatars;
+} catch (e) { errs.push("avatars: " + e.message); }
+
+/* --------------------------------------------------------------- 4 · buttons */
+let btnCleanups = [];
+function paintButtons() {
+  btnCleanups.forEach((fn) => fn());
+  const host = $("#btns");
+  host.innerHTML = "";
+  const bloom = $("#btn-bloom").value;
+  const sparkles = $("#btn-stars").checked;
+  // last row proves arbitrary hex works end-to-end, not just the seven palette names
+  const swatches = [...VARIANTS.map((v, i) => [v, COLORS[i]]), ["gradient", "#e4593b"], ["solid", "#7cc4dc"]];
+  btnCleanups = swatches.map(([variant, color]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "dbtn";
+    b.textContent = `${variant} · ${color}`;
+    host.append(b);
+    return ditherButton(b, { color, variant, bloom, sparkles });
+  });
+}
+try {
+  paintButtons();
+  $("#btn-bloom").onchange = paintButtons;
+  $("#btn-stars").onchange = paintButtons;
+} catch (e) { errs.push("buttons: " + e.message); }
+
+/* -------------------------------------------------------------- 5 · washes */
+try {
+  const specs = [
+    { from: "purple", to: "transparent", direction: "up", label: "purple → transparent, up" },
+    { from: "orange", to: "transparent", direction: "down", label: "orange → transparent, down" },
+    { from: "purple", to: "pink", direction: "right", label: "purple → pink, two-tone" },
+    { from: hueOfHex(PERSON_COLORS.Uday), to: "transparent", direction: "up", label: "Uday's coral, hue-seeded" },
+  ];
+  const host = $("#washes");
+  for (const s of specs) {
+    const box = document.createElement("div");
+    box.className = "wash";
+    const cap = document.createElement("span");
+    cap.textContent = s.label;
+    box.append(cap);
+    host.append(box);
+    ditherGradient(box, { from: s.from, to: s.to, direction: s.direction, cell: 3, bloom: "low" });
+  }
+} catch (e) { errs.push("washes: " + e.message); }
+
+log(errs.length ? "errors:\n" + errs.join("\n") : `ok · ${months.length} months · ${bois.length} bois`);
+</script>
+</body>
+</html>
