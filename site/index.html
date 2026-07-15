@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <link rel="stylesheet" href="./css/style.css">
 <script type="importmap">
 {
@@ -148,10 +150,22 @@
 
 </main>
 
-<footer>built with ❤️</footer>
+<footer>built with ❤️
+<div id="install-wrap" style="display:none;margin-top:1.2rem"><button id="install-chip" class="chip">install the app</button></div>
+</footer>
 
 <noscript><style>#loader{display:none}[data-reveal]{opacity:1!important;transform:none!important}</style>
 <p style="text-align:center;padding:2rem">This page needs JavaScript to count the bangers.</p></noscript>
 <script type="module" src="./js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+// Chrome/Android only — Safari never fires this, so iOS just never sees the chip (Share → Add to Home Screen there).
+addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  const wrap = document.getElementById('install-wrap');
+  wrap.style.display = '';
+  document.getElementById('install-chip').onclick = () => { wrap.style.display = 'none'; e.prompt(); };
+});
+</script>
 </body>
 </html>

@@ -147,6 +147,10 @@ reference (still loads the parked time machine too). Verified clean
   retired 12 Jun as scope creep.
 - **Playable vinyl** — hero record that actually plays the playlist's
   songs. Glorious. Parked.
+- **Push notifications** (PWA) — needs per-device subscription storage +
+  a VAPID sender; repo has no backend, and committing push endpoints to a
+  public repo leaks them. Parked 15 Jul until there's a reason to ping
+  the bois (e.g. "new bangers synced").
 - **Time machine** (`site/js/visuals/timemachine.js`) — PARKED 13 Jun by
   Uday ("the timeline one … lets park that") in favour of shipping the
   nebulae. Still fully built + mocked at `site/mocks.html` (loads it under
@@ -244,6 +248,31 @@ requests.**
   per-cover try/except. Sheets are same-origin, which also removes the old
   cross-origin canvas-tainting concern. WebP quality (`WEBP_QUALITY=82`) is the
   size/sharpness knob.
+
+## PWA (SHIPPED 15 Jul — `site/manifest.webmanifest`, `site/sw.js`)
+
+Site is installable to a phone home screen and works offline. No build step, no workbox.
+
+- `site/manifest.webmanifest` — every path is **relative** (`start_url`/`scope` = `./`).
+  Pages serves from `/Spotify-Thingy/`, so absolute paths would break install there.
+- `site/icon-192.png` / `icon-512.png` — the `favicon.svg` vinyl, centred at ~61% on a
+  `#0a161d` square so one pair of icons is valid as both `any` and `maskable`
+  (maskable needs the art inside the centre-80% safe circle; a full-bleed vinyl gets
+  its grooves cropped by Android's mask). Regenerate by rasterising the SVG, not by hand.
+- `site/sw.js` — `data.json` and navigations are **network-first** (CI regenerates
+  `data.json` every 2 days; cache-first would pin the site to stale numbers). Everything
+  else is cache-first + background refresh, and the jsdelivr/fonts CDNs are cached too —
+  without them offline is a blank page, since three/gsap/chart.js are import-mapped there.
+- Album covers (i.scdn.co) are cached **as they lazy-load** — whatever you've scrolled
+  past works offline; no precache of all ~700. Bump `CACHE` to invalidate everything.
+- Cross-origin subresources (covers, fonts) are refetched in **CORS mode** inside the SW:
+  their natural no-cors requests yield opaque responses, which `res.ok` rejects and Chrome
+  pads by ~MBs in cache storage. Every allowed host sends `ACAO:*`, so this is safe. If a
+  new CDN host is ever added to `isCacheable`, it must send `ACAO:*` too.
+- Install chip: footer of `index.html`, shown only when `beforeinstallprompt` fires
+  (Chrome/Android). iOS never fires it — Safari users go Share → Add to Home Screen.
+  Visibility is toggled on the wrapper div, not the button — `.chip`'s `display:inline-flex`
+  would override the `hidden` attribute.
 
 ## Dither kit (SHIPPED 14 Jul — `site/js/visuals/dither.js`)
 
