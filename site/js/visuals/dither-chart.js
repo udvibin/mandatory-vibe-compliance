@@ -51,6 +51,10 @@ export function ditherChart(host, opts = {}) {
   const glow = layer(host, false);     // bloom
   const gctx = chrome.getContext("2d");
   const bctx = glow.getContext("2d");
+  const sctx = surface.getContext("2d");
+  // "inherit" is invalid inside the canvas font shorthand (silently ignored), so
+  // resolve the host's real family once.
+  const labelFont = `11px ${getComputedStyle(host).fontFamily || "sans-serif"}`;
 
   const off = document.createElement("canvas"); // fill cache
   const octx = off.getContext("2d");
@@ -60,14 +64,14 @@ export function ditherChart(host, opts = {}) {
   const tip = document.createElement("div");
   tip.style.cssText =
     "position:absolute;pointer-events:none;display:none;z-index:3;padding:.4em .6em;" +
-    "border-radius:5px;font:12px/1.45 inherit;white-space:nowrap;" +
+    "border-radius:5px;font-size:12px;line-height:1.45;white-space:nowrap;" +
     "background:rgba(6,12,16,.92);border:1px solid rgba(157,180,189,.2)";
   host.append(tip);
 
   const legend = document.createElement("div");
   legend.style.cssText =
     "position:absolute;left:0;bottom:-2px;display:flex;gap:.8em;flex-wrap:wrap;z-index:3;" +
-    "font:11px/1 inherit";
+    "font-size:11px;line-height:1";
   if (o.legend) host.append(legend);
 
   /* ----------------------------------------------------------------- state */
@@ -100,8 +104,8 @@ export function ditherChart(host, opts = {}) {
     const size = backingSize(plot.w, plot.h);
     cols = size.cols;
     rows = size.rows;
-    off.width = crisp.width = cols;
-    off.height = crisp.height = rows;
+    off.width = crisp.width = surface.width = cols;
+    off.height = crisp.height = surface.height = rows;
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     for (const c of [chrome, glow]) {
@@ -125,6 +129,9 @@ export function ditherChart(host, opts = {}) {
   /* ------------------------------------------------------------- the model */
   function build() {
     keys = o.series.map((s) => s.key);
+    // a spotlight locked on a series that update() removed would dim everything forever
+    if (selectedKey && !keys.includes(selectedKey)) selectedKey = null;
+    if (focusKey && !keys.includes(focusKey)) focusKey = null;
     const res = computeBands(o.data, keys, o.stackType);
     bands = res.bands;
     yScale = buildYScale(res.max, plot.h);
@@ -157,7 +164,7 @@ export function ditherChart(host, opts = {}) {
     const box = host.getBoundingClientRect();
     gctx.clearRect(0, 0, box.width, box.height);
     if (!yScale) return;
-    gctx.font = "11px inherit";
+    gctx.font = labelFont;
     gctx.fillStyle = o.ink;
     gctx.strokeStyle = o.gridLine;
     gctx.lineWidth = 1;
@@ -271,10 +278,9 @@ export function ditherChart(host, opts = {}) {
       }
     }
 
-    const sctx = surface.getContext("2d");
-    surface.width = cols;
-    surface.height = rows;
-    sctx.imageSmoothingEnabled = false;
+    // crisp → surface is a 1:1 blit (both cols×rows), so no per-frame resize needed —
+    // reassigning width/height here cleared and reallocated the canvas every frame
+    sctx.clearRect(0, 0, cols, rows);
     sctx.drawImage(crisp, 0, 0);
 
     if (o.bloom !== "off") {
@@ -418,6 +424,82 @@ export function ditherChart(host, opts = {}) {
       tip.remove();
       legend.remove();
     },
+  };
+}
+
+/**
+ * Tiny single-series area — the cartesian engine shrunk to "values in a box".
+ * No axes, no legend, no tooltip; same column painter, same hover lift, same
+ * entrance reveal. For table rows, stat cards, anywhere a full chart is too loud.
+ *
+ *   ditherSparkline(el, { values: [3, 7, 4, …], color: "#e4593b" })
+ */
+export function ditherSparkline(host, opts = {}) {
+  const o = {
+    values: [], color: "blue", variant: "gradient",
+    animate: true, animationDuration: 900, max: 0,
+    ...opts,
+  };
+  const reduce = prefersReducedMotion();
+  if (getComputedStyle(host).position === "static") host.style.position = "relative";
+  const canvas = layer(host, true);
+  canvas.style.width = "100%";
+  canvas.style.height = "100%";
+  const ctx = canvas.getContext("2d");
+  const seed = seedOf(o.color);
+
+  let cols = 0, rows = 0, tops = [];
+  let intensity = 0, hovered = false, raf = 0;
+  const animStart = performance.now();
+
+  const measure = () => {
+    const box = host.getBoundingClientRect();
+    ({ cols, rows } = backingSize(box.width, box.height));
+    canvas.width = cols;
+    canvas.height = rows;
+    const max = o.max || Math.max(...o.values, 1);
+    // one row of headroom so the peak's border outline isn't clipped
+    tops = resample(o.values.map((v) => 1 + (1 - v / max) * (rows - 2)), cols);
+  };
+
+  const paint = (reveal) => {
+    ctx.clearRect(0, 0, cols, rows);
+    const front = reveal * cols;
+    for (let x = 0; x < cols && x <= front; x++) {
+      paintColumn(ctx, x, tops[x], rows - 1, seed, { variant: o.variant, intensity });
+    }
+  };
+
+  const loop = () => {
+    const want = hovered ? 1 : 0;
+    let settling = false;
+    if (Math.abs(intensity - want) > 0.001) {
+      intensity += (want - intensity) * 0.16;
+      settling = true;
+    } else intensity = want;
+    const prog = o.animate && !reduce
+      ? clamp01((performance.now() - animStart) / o.animationDuration)
+      : 1;
+    paint(easeInOutCubic(prog));
+    raf = settling || prog < 1 ? requestAnimationFrame(loop) : 0;
+  };
+  const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
+
+  const enter = () => { hovered = true; kick(); };
+  const leave = () => { hovered = false; kick(); };
+  host.addEventListener("pointerenter", enter);
+  host.addEventListener("pointerleave", leave);
+  const ro = new ResizeObserver(() => { measure(); kick(); });
+  ro.observe(host);
+
+  measure();
+  kick();
+  return () => {
+    if (raf) cancelAnimationFrame(raf);
+    ro.disconnect();
+    host.removeEventListener("pointerenter", enter);
+    host.removeEventListener("pointerleave", leave);
+    canvas.remove();
   };
 }
 

@@ -268,9 +268,23 @@ the paint math is plain canvas-2D. So the paint core (`palette.ts`, `pixel.ts`,
 in what feeds `density`. Hover lift *subtracts from the threshold*, so the texture gets
 denser, not just brighter.
 
-Not ported (upstream still has them): bar/pie/radar renderers, sparkline, scrub tooltip,
-legend spotlight, stacking, multi-series. `paintColumn` already takes the `stacked` /
-`dim` / `sparse` args those need — the hooks are in.
+**Standalone chart engine (15 Jul, `dither-renderer` branch)** — the full renderer set,
+no Chart.js anywhere in it:
+
+- `dither-geom.js` — scales (scalePoint/scaleBand/nice/stack reimplemented, ~60 lines,
+  zero deps) + polar geometry (pie slices, radar axes, point-in-polygon,
+  distance-to-edge). Pure functions, node-testable.
+- `dither-chart.js` — `ditherChart()` (area/line/bar, grouped/stacked/percent,
+  multi-series, own axes/grid, scrub crosshair, tooltip, legend spotlight) and
+  `ditherSparkline()` (the engine shrunk to "values in a box" — no axes, no chrome).
+- `dither-polar.js` — `ditherPie()` (donut option, slice hover, sweep entrance) and
+  `ditherRadar()` (per-axis-normalised spokes, rings, vertex markers). Radial density is
+  distance-driven per upstream: dense at the edge, thinning to the centre.
+- All exercised in `dither-lab.html` §0/§0b on real data. Lifting to its own repo =
+  `dither.js` + `dither-geom.js` + `dither-chart.js` + `dither-polar.js` + a README.
+- **Canvas `font` gotcha:** `ctx.font = "11px inherit"` is *silently ignored* ("inherit"
+  is invalid inside the font shorthand — CSS `font:` in cssText too). Resolve the real
+  family via `getComputedStyle` once, or set `font-size`/`line-height` separately.
 
 ## Gotchas & decisions (hard-won, don't relearn)
 
