@@ -269,10 +269,16 @@ Site is installable to a phone home screen and works offline. No build step, no 
   their natural no-cors requests yield opaque responses, which `res.ok` rejects and Chrome
   pads by ~MBs in cache storage. Every allowed host sends `ACAO:*`, so this is safe. If a
   new CDN host is ever added to `isCacheable`, it must send `ACAO:*` too.
-- Install chip: footer of `index.html`, shown only when `beforeinstallprompt` fires
-  (Chrome/Android). iOS never fires it — Safari users go Share → Add to Home Screen.
-  Visibility is toggled on the wrapper div, not the button — `.chip`'s `display:inline-flex`
-  would override the `hidden` attribute.
+- Install banner: top of `index.html`, ✕ to dismiss (sticks via
+  `localStorage["mvc-install-dismissed"]`), never shows in standalone mode.
+  Chrome/Android: shows when `beforeinstallprompt` fires, chip triggers the real prompt.
+  iOS Safari (never fires the event; detected via `'standalone' in navigator`, an
+  iOS-Safari-only property): same banner, "share → add to home screen" text, no button.
+  CSS gotcha: `#install-banner{display:flex}` would defeat the `hidden` attribute, so
+  `#install-banner[hidden]{display:none}` is load-bearing.
+- Same-origin fetches in the SW use `cache:'no-cache'` (install snapshot too) — without it
+  the background refresh trusts the browser HTTP cache and can re-store stale shell assets
+  after a deploy indefinitely. CDN URLs are version-pinned, so they keep HTTP caching.
 
 ## Dither kit (SHIPPED 14 Jul — `site/js/visuals/dither.js`)
 

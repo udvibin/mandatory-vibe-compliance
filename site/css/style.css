@@ -545,3 +545,20 @@ footer{
   .bar{transition:none!important}
   a.track:hover{transform:none}
 }
+
+/* ---------- install banner ---------- */
+#install-banner{
+  position:relative;z-index:6; /* above the fixed bg canvas stack */
+  display:flex;align-items:center;justify-content:center;gap:1rem;
+  padding:.6rem 3.2rem;
+  background:var(--bg-1);border-bottom:1px solid var(--hairline);
+  font-family:var(--body);font-size:.78rem;letter-spacing:.06em;color:var(--ink);
+}
+#install-banner[hidden]{display:none} /* .chip-style display would defeat [hidden] otherwise */
+#install-banner .chip{min-height:34px;padding:.2em .95em;--pc:var(--cyan)}
+#install-x{
+  position:absolute;right:.5rem;top:50%;transform:translateY(-50%);
+  background:none;border:0;cursor:pointer;padding:.5rem .7rem;
+  color:var(--ink-dim);font-size:.9rem;line-height:1;
+}
+#install-x:hover{color:var(--ink)}

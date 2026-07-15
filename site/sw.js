@@ -18,7 +18,8 @@ const isCacheable = (url) =>
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  // no-cache here too: install must snapshot the server's shell, not the HTTP cache's.
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'no-cache' })))));
 });
 
 self.addEventListener('activate', (e) => {
@@ -38,7 +39,12 @@ self.addEventListener('fetch', (e) => {
   // Cross-origin subresources (covers, fonts, CDN css) arrive as no-cors → opaque responses,
   // which res.ok rejects and Chrome pads by ~MBs in cache. Every host in isCacheable sends
   // ACAO:*, so refetch them in CORS mode to get a real, cacheable response instead.
-  const netReq = url.origin === self.location.origin ? req : new Request(req.url, { mode: 'cors' });
+  // Same-origin gets cache:'no-cache' — otherwise the background refresh trusts the browser's
+  // HTTP cache and can re-store stale shell assets forever after a deploy. CDN URLs are
+  // version-pinned/immutable, so they keep normal HTTP caching.
+  const netReq = url.origin === self.location.origin
+    ? new Request(req.url, { cache: 'no-cache' })
+    : new Request(req.url, { mode: 'cors' });
 
   const save = (res) => {
     if (res && res.ok) {
