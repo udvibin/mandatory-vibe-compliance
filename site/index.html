@@ -28,7 +28,7 @@
 <body>
 
 <div id="install-banner" hidden>
-  <span id="install-msg">put the vibes on your home screen</span>
+  <span id="install-msg"><em>the archive, in your pocket</em><span class="tail"> — every banger, even offline</span></span>
   <button id="install-go" class="chip">install</button>
   <button id="install-x" aria-label="dismiss">✕</button>
 </div>
@@ -183,9 +183,10 @@ if ('serviceWorker' in navigator) addEventListener('load', () => navigator.servi
   // iOS Safari never fires beforeinstallprompt ('standalone' in navigator is iOS-Safari-only):
   // same banner, instructions instead of a button.
   if ('standalone' in navigator && show()) {
-    document.getElementById('install-msg').textContent = 'get the app — tap share, then “add to home screen”';
+    document.getElementById('install-msg').innerHTML = '<em>the archive, in your pocket</em><span class="tail"> — tap share ▸ add to home screen</span>';
     document.getElementById('install-go').remove();
-    banner.hidden = false;
+    // wait for the loader to clear so the banner doesn't float over it
+    addEventListener('load', () => setTimeout(() => { banner.hidden = false; }, 900));
   }
 }
 </script>

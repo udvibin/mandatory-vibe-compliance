@@ -269,7 +269,12 @@ Site is installable to a phone home screen and works offline. No build step, no 
   their natural no-cors requests yield opaque responses, which `res.ok` rejects and Chrome
   pads by ~MBs in cache storage. Every allowed host sends `ACAO:*`, so this is safe. If a
   new CDN host is ever added to `isCacheable`, it must send `ACAO:*` too.
-- Install banner: top of `index.html`, ✕ to dismiss (sticks via
+- Install banner: floating liquid-glass pill, fixed top-centre of `index.html`
+  (z-90, under the loader), Fraunces-italic lead + dimmed tail, slide-in entrance;
+  reduced-motion and reduced-transparency fallbacks match the site's glass panels.
+  Centring is `left:0;right:0;margin-inline:auto;width:fit-content` — `left:50%
+  + translateX` caps a fixed element's shrink-to-fit width at half the viewport.
+  ✕ to dismiss (sticks via
   `localStorage["mvc-install-dismissed"]`), never shows in standalone mode.
   Chrome/Android: shows when `beforeinstallprompt` fires, chip triggers the real prompt.
   iOS Safari (never fires the event; detected via `'standalone' in navigator`, an
