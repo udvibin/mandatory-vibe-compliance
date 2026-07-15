@@ -255,10 +255,12 @@ Site is installable to a phone home screen and works offline. No build step, no 
 
 - `site/manifest.webmanifest` — every path is **relative** (`start_url`/`scope` = `./`).
   Pages serves from `/Spotify-Thingy/`, so absolute paths would break install there.
-- `site/icon-192.png` / `icon-512.png` — the `favicon.svg` vinyl, centred at ~61% on a
-  `#0a161d` square so one pair of icons is valid as both `any` and `maskable`
-  (maskable needs the art inside the centre-80% safe circle; a full-bleed vinyl gets
-  its grooves cropped by Android's mask). Regenerate by rasterising the SVG, not by hand.
+- Icons (regenerate with `dev/make_icons.py`, Pillow-only): `icon-192/512.png` are the
+  full-bleed vinyl on transparent (purpose `any`); `icon-maskable-512.png` is the vinyl
+  at 85% on `#0a161d` (Android's mask safe zone is the centre-80% circle — full-bleed
+  would crop the grooves). `apple-touch-icon` points at the maskable one: iOS composites
+  transparent PNGs onto black. Home-screen label is "Vibes" (`short_name` +
+  `apple-mobile-web-app-title`); install dialog keeps the full name.
 - `site/sw.js` — `data.json` and navigations are **network-first** (CI regenerates
   `data.json` every 2 days; cache-first would pin the site to stale numbers). Everything
   else is cache-first + background refresh, and the jsdelivr/fonts CDNs are cached too —
