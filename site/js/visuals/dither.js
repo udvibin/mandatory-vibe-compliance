@@ -39,11 +39,11 @@ export const CELL = 2; // css px per dither cell — chunky enough to read pixel
 const MAX_COLS = 520;
 const MAX_ROWS = 200;
 // Opacity of the top border outline (just under solid, so it reads as a soft edge).
-const BORDER_ALPHA = 0.72;
+export const BORDER_ALPHA = 0.72;
 // Opacity of a dither "off" cell relative to an "on" cell. The scatter modulates
 // between two tiers of the *same* colour instead of leaving holes, so the background
 // never shows through as stark white on a light theme.
-const OFF_TIER = 0.4;
+export const OFF_TIER = 0.4;
 
 export const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 // Gentle start + soft settle, so entrances don't feel linear.
