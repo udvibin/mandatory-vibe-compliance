@@ -1,4 +1,3 @@
-[2026-05-20 01:23:20 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-05-22 01:25:18 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-05-24 00:42:44 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-05-26 01:12:08 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
@@ -89,3 +88,6 @@
 [2026-08-18 00:10:19 IST] Warning: chat export in Drive is 35 days old - re-export the WhatsApp chat to sync newer songs.
 [2026-08-18 00:10:20 IST] Spotify authentication failure: SpotifyOauthError('error: invalid_grant, error_description: Refresh token revoked')
 [2026-08-18 00:10:20 IST] No new songs added (Spotify authentication failure).
+[2026-08-20 00:06:03 IST] Warning: chat export in Drive is 37 days old - re-export the WhatsApp chat to sync newer songs.
+[2026-08-20 00:06:04 IST] Spotify authentication failure: SpotifyOauthError('error: invalid_grant, error_description: Refresh token revoked')
+[2026-08-20 00:06:04 IST] No new songs added (Spotify authentication failure).
