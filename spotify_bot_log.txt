@@ -1,4 +1,3 @@
-[2026-05-26 01:12:08 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-05-28 01:50:38 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-05-30 01:57:19 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
 [2026-06-01 00:49:03 IST] Spotify authentication failure: SpotifyException(403, -1, 'https://api.spotify.com/v1/me/:\n Active premium subscription required for the owner of the app. When the subscription status changes, it can take a few hours before requests are allowed again.')
@@ -94,3 +93,4 @@
 [2026-08-22 00:07:00 IST] No new songs added (Spotify authentication failure).
 [2026-08-22 00:26:28 IST] 14 songs added: Sophie Brown by Brazzaville, KARMA by SHIMA, NEWBOYJUST by Daniel Allan, TIMID., The Sun by Ben Böhmer, Oh Wonder, Stay Blessed by Swimming Paul, Alecc Crisostomo, D38 (+9 more)
 [2026-08-24 00:01:50 IST] No new songs added (all found songs already in playlist).
+[2026-08-26 00:11:01 IST] No new songs added (all found songs already in playlist). | 1 Apple links failed
