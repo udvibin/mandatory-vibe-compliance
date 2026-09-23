@@ -1,4 +1,3 @@
-[2026-06-24 01:38:23 IST] 1 songs added: I CAN’T WAIT (feat. Ms. Lauryn Hill) by Kanye West, Ye, Ms. Lauryn Hill
 [2026-06-26 01:33:14 IST] No new songs added (all found songs already in playlist).
 [2026-06-28 00:53:22 IST] No new songs added (all found songs already in playlist).
 [2026-06-30 01:30:40 IST] No new songs added (all found songs already in playlist).
@@ -88,3 +87,5 @@
 [2026-09-18 02:32:50 IST] No new songs added (all found songs already in playlist).
 [2026-09-20 01:41:19 IST] No new songs added (all found songs already in playlist).
 [2026-09-22 03:17:23 IST] No new songs added (all found songs already in playlist).
+[2026-09-24 02:42:36 IST] Warning: chat export in Drive is 12 days old - re-export the WhatsApp chat to sync newer songs.
+[2026-09-24 02:43:29 IST] No new songs added (all found songs already in playlist).
