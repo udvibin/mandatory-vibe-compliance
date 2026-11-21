@@ -1,7 +1,3 @@
-[2026-08-22 00:06:59 IST] Warning: chat export in Drive is 39 days old - re-export the WhatsApp chat to sync newer songs.
-[2026-08-22 00:07:00 IST] Spotify authentication failure: SpotifyOauthError('error: invalid_grant, error_description: Refresh token revoked')
-[2026-08-22 00:07:00 IST] No new songs added (Spotify authentication failure).
-[2026-08-22 00:26:28 IST] 14 songs added: Sophie Brown by Brazzaville, KARMA by SHIMA, NEWBOYJUST by Daniel Allan, TIMID., The Sun by Ben Böhmer, Oh Wonder, Stay Blessed by Swimming Paul, Alecc Crisostomo, D38 (+9 more)
 [2026-08-24 00:01:50 IST] No new songs added (all found songs already in playlist).
 [2026-08-26 00:11:01 IST] No new songs added (all found songs already in playlist). | 1 Apple links failed
 [2026-08-28 07:33:57 IST] No new songs added (Target chat archive 'WhatsApp Chat with Mandatory vibe compliance' not found).
@@ -63,3 +59,4 @@
 [2026-11-16 04:04:05 IST] 2 songs added: Rooster (2022 Remaster) by Alice In Chains, It's Perfectly Clear Right Now by DJ Counselling
 [2026-11-18 06:11:07 IST] No new songs added (all found songs already in playlist).
 [2026-11-20 05:52:55 IST] 1 songs added: Alone in Kyoto by Air
+[2026-11-22 04:22:24 IST] No new songs added (all found songs already in playlist).
